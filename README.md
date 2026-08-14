@@ -16,7 +16,8 @@ Everything here derives from the `meshtastic/firmware` source (branches `master`
 
 | File | Contents |
 |---|---|
-| [`meshtastic_device_behavior_audit.xlsx`](meshtastic_device_behavior_audit.xlsx) | Per-variant inventory. Four sheets: **Read Me**, **Develop** (176 variants), **Master** (171 variants), and **Branch Diff**. 30 columns per variant covering buttons, every LED role, polarity, buzzer, vibration, RGB/NeoPixel, touchscreen, and PMU wiring — plus a resolved-behavior column and the raw matched defines. |
+| [`meshtastic_device_behavior_audit.xlsx`](meshtastic_device_behavior_audit.xlsx) | Per-variant inventory, and the authoritative artifact. Four sheets: **Read Me**, **Develop** (176 variants), **Master** (171 variants), and **Branch Diff**. 30 columns per variant covering buttons, every LED role, polarity, buzzer, vibration, RGB/NeoPixel, touchscreen, and PMU wiring — plus a resolved-behavior column and the raw matched defines. |
+| [`audit/`](audit/) | The same data rendered as markdown, readable directly on GitHub: [method and semantics](audit/README.md) plus the branch diff, and one entry per variant for [`develop`](audit/develop.md) and [`master`](audit/master.md). Generated from the spreadsheet by [`convert_xlsx_to_md.py`](audit/convert_xlsx_to_md.py) — re-run it after any change to the .xlsx. |
 | [`meshtastic_device_behavior_audit_report.md`](meshtastic_device_behavior_audit_report.md) | The analysis: how a variant define becomes runtime behavior, button and LED semantics traced to the consuming code, an inventory summary, master-vs-develop drift, findings, and method/caveats. |
 
 Scope: LED, button, buzzer, vibration, NeoPixel/RGB and touch defines in every `variants/<platform>/<board>/variant.h`, shared local headers, and `-D` build flags in each board's `platformio.ini` — resolved through the preprocessor chain and cross-referenced against the application code that consumes them. Twelve platform families (esp32, esp32c3/c6/p4/s2/s3, native/portduino, nrf52840, nrf54l15, rp2040, rp2350, stm32).
@@ -51,6 +52,6 @@ Nine documents, in series order. Each one closes with a variant-file declaration
 
 - **Own a Meshtastic device and want to know what it's doing?** Read the [behavior guide](meshtastic_standard_behavior_guide.md).
 - **Designing new hardware?** Start with [Radio & MCU](meshtastic_radio_mcu_specification.md) (#3) and [Display](meshtastic_display_specification.md) (#2) — those two decisions set the device class — then work through the rest.
-- **Working on the firmware, or checking a specific board?** The [audit report](meshtastic_device_behavior_audit_report.md) explains the define-resolution chain and the consuming code; the [spreadsheet](meshtastic_device_behavior_audit.xlsx) has the per-variant detail.
+- **Working on the firmware, or checking a specific board?** The [audit report](meshtastic_device_behavior_audit_report.md) explains the define-resolution chain and the consuming code; the [spreadsheet](meshtastic_device_behavior_audit.xlsx) — or [its markdown rendering](audit/) — has the per-variant detail.
 
 Several rules across the series depend on firmware work that hasn't landed yet — the LED spec's §8 and the Button spec's §5 name those items explicitly.
