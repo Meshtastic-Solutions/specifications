@@ -16,9 +16,11 @@ Almost every Meshtastic device has one primary button (147 of 176 boards). What 
 
 | Press | Action |
 |---|---|
-| Single click | Wake the screen / advance to the next page |
-| Hold ~0.5 s | Select (activate the highlighted menu item) |
-| Hold ~4 s | Shut down |
+| Single click | **Next** — wake the screen, advance to the next page, or move to the next item in an open menu |
+| Hold 0.5–4 s | **Select** (activate the highlighted menu item) |
+| Hold past ~4 s | Shut down |
+
+Those first two are the entire navigation model on a one-button device: clicking moves, holding commits. Select fires once the hold passes about half a second, so any deliberate press-and-release inside that window is a select; keep holding and you reach the shutdown tier at ~4 seconds.
 
 **On devices without a screen** (trackers, sensor nodes, routers):
 

@@ -8,7 +8,7 @@ This document prescribes button and switch hardware for new Meshtastic devices. 
 
 **Every user-facing device MUST have a physical user button.** 147 of the 176 current variants have one; among the 24 that don't are devices with no local path to shutdown, position ping, or GPS toggle at all — functions the firmware provides for free the moment a button exists. Headless infrastructure nodes (rack routers, embedded modules) are the only legitimate exception.
 
-The button is momentary and tactile: the user should feel the actuation, including through gloves, and be able to find it by touch — the button semantics include timed holds (0.5 s select, ~4 s shutdown), which are unusable on a mushy or ambiguous switch. The firmware supplies all behavior (click, double, triple, hold tiers, per the behavior guide); the hardware's only job is a clean, unambiguous press.
+The button is momentary and tactile: the user should feel the actuation, including through gloves, and be able to find it by touch — the button semantics include timed holds (0.5–4 s select, past ~4 s shutdown), which are unusable on a mushy or ambiguous switch. The firmware supplies all behavior (click, double, triple, hold tiers, per the behavior guide); the hardware's only job is a clean, unambiguous press.
 
 Touchscreens, capacitive pads, and keyboards supplement the user button; they never replace it. This restates the Display Specification's rule from the hardware side: wake, shutdown, and recovery must survive a crashed UI, a cracked digitizer, and winter gloves.
 
