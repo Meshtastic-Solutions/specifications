@@ -8,7 +8,7 @@ This document prescribes button and switch hardware for new Meshtastic devices. 
 
 **Every user-facing device MUST have a physical user button.** 147 of the 176 current variants have one; among the 24 that don't are devices with no local path to shutdown, position ping, or GPS toggle at all — functions the firmware provides for free the moment a button exists. Headless infrastructure nodes (rack routers, embedded modules) are the only legitimate exception.
 
-The button is momentary and tactile: the user should feel the actuation, including through gloves, and be able to find it by touch — the button semantics include timed holds (0.5 s select, ~4 s shutdown), which are unusable on a mushy or ambiguous switch. The firmware supplies all behavior (click, double, triple, hold tiers, per the behavior guide); the hardware's only job is a clean, unambiguous press.
+The button is momentary and tactile: the user should feel the actuation, including through gloves, and be able to find it by touch — the button semantics include timed holds (0.5–4 s select, past ~4 s shutdown), which are unusable on a mushy or ambiguous switch. The firmware supplies all behavior (click, double, triple, hold tiers, per the behavior guide); the hardware's only job is a clean, unambiguous press.
 
 Touchscreens, capacitive pads, and keyboards supplement the user button; they never replace it. This restates the Display Specification's rule from the hardware side: wake, shutdown, and recovery must survive a crashed UI, a cracked digitizer, and winter gloves.
 
@@ -34,19 +34,27 @@ Debounce is the firmware's job; no hardware debounce network is required, and ha
 
 **Devices with a screen SHOULD have a second button** in the back/cancel position; 26 boards ship two-button layouts today and the firmware carries complete semantics for both roles. The standard second-button role is **alt/back** (`PIN_BUTTON2`, auto-mapped to `ALT_BUTTON_PIN`): click for back/next, half-second hold for the long-alt action. The alternative role is **cancel** (`CANCEL_BUTTON_PIN`): click dismisses, 4-second hold shuts down — appropriate where the designer wants a second shutdown path or a dismiss-first interaction. A variant chooses one role per button; declaring `CANCEL_BUTTON_PIN` suppresses the alt auto-mapping, so the choice is explicit in the variant file.
 
+On PMU boards the power button can carry the cancel role directly (§6), which may remove the need for a discrete second button where cancel — rather than alt/back — is what the design wants. Note the roles are not identical: the PMU button yields `CANCEL` on a short click, where a `CANCEL_BUTTON_PIN` also carries the 4-second hold to shutdown.
+
 Two-button devices place the pair asymmetrically — different positions, ideally different cap shapes — so they are distinguishable by touch. Symmetric button pairs cause wrong-button holds, and a wrong-button 4-second hold is a shutdown.
 
 ## 5. Factory reset
 
 The fleet currently has exactly one factory-reset gesture, hard-coded for one board: the ThinkNode M7's screenless build extends the shutdown hold to a 15-second `FACTORY_RESET`. This guide recommends standardizing that gesture for all screenless devices — a screenless node otherwise has no local reset path at all — with two requirements if adopted: the gesture MUST be long enough to be unmistakably deliberate (the M7's 15 seconds is right), and the device MUST give escalating feedback during the hold (buzzer lead-up and/or LED indication) so the user knows they are approaching a destructive action, with a distinct confirmation at the point of no return. Moving this from a per-board special case in `InputBroker.cpp` to a standard screenless behavior is a firmware work item; devices with screens perform factory reset through the UI and need no gesture.
 
-## 6. Optional switches
+## 6. Power and GPS controls
 
-**Power switch.** Tracker-class and long-deployment devices MAY carry a physical power switch, and it MUST be a true battery disconnect — a slide or rocker that actually breaks the battery circuit, not a GPIO into the firmware. A real disconnect is invisible to the firmware, guarantees zero drain in storage, and works when the firmware is crashed or the battery is too low to boot; a soft "power switch" that depends on firmware cooperation is a button pretending to be a switch and MUST NOT be labeled as power. Slide-style is preferred over toggle precisely because it cannot be pressed accidentally and its state is visible at a glance. (The shutdown *button* semantics remain unchanged — the switch is for storage and transport, not daily power cycling.)
+**Power: a PMU power button, not a cutoff switch.** New designs SHOULD NOT carry a hard power-cutoff switch in the battery circuit. Breaking that circuit at an arbitrary instant risks corrupting the filesystem — the firmware persists the node database and configuration in the background, and a disconnect landing mid-write costs the user their settings or their node list. That failure presents as a device that quietly "forgot everything," which is far harder for a user to diagnose than a flat battery, and it is self-inflicted: the device was working when they flipped the switch.
+
+The preferred arrangement is a **PMU power button** — the AXP arrangement on the T-Beam family, where the button is wired to the power-management IC rather than straight across the cell. Because the firmware can see the press, shutdown is orderly: writes are flushed and the radio brought down before power drops. The PMU's own hardware long-press sits underneath as a last-resort cutoff for a wedged device, which is the case a cutoff switch was really there for — so the arrangement keeps the guarantee and drops the corruption risk.
+
+It also earns a second control for free. With `PMU_POWER_BUTTON_IS_CANCEL`, a short click of the power button emits `CANCEL` — in practice, sleeping the screen — giving the device a dedicated cancel control with no additional part, panel cutout, or seal to fail. Three boards ship this today (T-Beam, T-Beam S3, T-Watch S3). It is worth reading alongside §4, which otherwise spends an entire second button on that role.
+
+Where a true disconnect is genuinely required — shipping regulations, or storage measured in months — it MUST be labeled and positioned as a storage disconnect, to be operated only after the device has been shut down, and MUST NOT be presented as the everyday power control.
 
 **GPS switch.** Devices with GPS MAY carry a physical GPS switch that cuts power to the GPS module. This is safe by construction: the firmware already controls GPS power on 56 boards (`PIN_GPS_EN`) and probes for the module at startup, degrading gracefully when it finds nothing — so a hardware switch upstream simply makes the node behave as GPS-less. The switch MUST cut the module's power rail, not just its data lines (a powered-but-disconnected GPS drains the battery for nothing), and MUST be labeled. The use case is assured privacy and power discipline: a user who needs GPS *provably* off — beyond trusting a software toggle — gets a switch they can see and feel. The software triple-click toggle remains the everyday path.
 
-Both switches follow the slide-switch ergonomic: state visible, position tactile, impossible to actuate by grip pressure.
+The GPS switch — and any storage disconnect fitted per above — follows the slide-switch ergonomic: state visible, position tactile, impossible to actuate by grip pressure.
 
 ## 7. The reset button
 
@@ -65,7 +73,8 @@ Placement rules follow from the same failure mode: reset MUST NOT sit adjacent o
 | Second button, back/alt role | `#define PIN_BUTTON2 <gpio>` (auto-maps to `ALT_BUTTON_PIN`) |
 | Second button, cancel role | `#define CANCEL_BUTTON_PIN <gpio>` |
 | Capacitive touch pad | `#define BUTTON_PIN_TOUCH <gpio>` (or `PIN_BUTTON_TOUCH`) |
-| Power switch (battery disconnect) | Nothing — a true disconnect is invisible to firmware, which is the test that it's real |
+| PMU power button (preferred over a cutoff switch) | `HAS_AXP192` / `HAS_AXP2101` (derives `HAS_PMU`), plus `PMU_POWER_BUTTON_IS_CANCEL` for the cancel / screen-sleep role |
+| Storage disconnect, where one is fitted | Nothing — a true disconnect is invisible to firmware |
 | GPS switch | Nothing beyond existing GPS declarations — the firmware's module probe handles the switched-off case |
 | Reset / BOOT buttons | Nothing — but the §7 physical-protection rules apply |
 
