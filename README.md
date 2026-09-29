@@ -6,7 +6,7 @@ The repository has three layers, and they build on each other:
 
 1. **The audit** — what the firmware source actually does, per board. The evidence base.
 2. **The behavior guide** — a plain-language, *descriptive* account of that behavior for users.
-3. **The specification series** — nine *prescriptive* documents telling hardware designers what a new Meshtastic device should be.
+3. **The specification series** — ten *prescriptive* documents telling hardware designers what a new Meshtastic device should be.
 
 Everything here derives from the `meshtastic/firmware` source (branches `master` and `develop`, July 2026), not from documentation — so it reflects what the code does rather than what the docs claim. The specifications are all **drafts for discussion** and use MUST / MUST NOT / SHOULD / MAY in the RFC 2119 sense. They are intended for eventual collection into a single unified Meshtastic device design guide.
 
@@ -32,7 +32,7 @@ The user-facing companion to the audit: the standard button presses, blink patte
 
 ## 3. The specification series (prescriptive)
 
-Nine documents, in series order. Each one closes with a variant-file declaration checklist and a shared rule: **declare exactly what exists** — a define with no hardware, or hardware with no define, fails the audit's dead-define rule.
+Ten documents, in series order. Each one closes with a variant-file declaration checklist and a shared rule: **declare exactly what exists** — a define with no hardware, or hardware with no define, fails the audit's dead-define rule.
 
 | # | Document | Prescribes |
 |---|---|---|
@@ -45,6 +45,7 @@ Nine documents, in series order. Each one closes with a variant-file declaration
 | 7 | [Antenna & RF](meshtastic_antenna_rf_specification.md) | RP-SMA preferred over standard SMA on certification-practice grounds; U.FL as internal-only; never transmit into an unattached antenna; band labeling at the connector and on the antenna; the stock antenna as part of the product; TCXO required (Meshtastic's long packets make drift the failure mode); high-power PA/FEM gain declaration. |
 | 8 | [Sound & Haptics](meshtastic_sound_haptics_specification.md) | Passive buzzers only — active buzzers flatten every ringtone and pitch-coded cue; port the sound out of the case; I2S audio as a strict upgrade; vibration recommended for pocket and wearable devices; no sound the firmware cannot silence. |
 | 9 | [Recovery & Flashing](meshtastic_recovery_flashing_specification.md) | One prime directive: the device must be essentially unbrickable. A recovery path the payload cannot erase; USB data lines that work; the official web flasher as the acceptance test; recovery gestures reachable without disassembly but not by accident; OTA that falls back rather than going dark; SWD/JTAG pads as the last-resort layer. |
+| 10 | [Revisions](meshtastic_revision_specification.md) | Prefer revisions the firmware cannot see; what a firmware-visible revision costs (six product lines already occupy twenty variant entries); keeping the delta to defines rather than a second build; boot-time revision detection, ideally implicit — a re-addressed I2C part is its own marker; marking the revision on the board and never shipping a silent one. |
 
 ---
 
@@ -52,6 +53,7 @@ Nine documents, in series order. Each one closes with a variant-file declaration
 
 - **Own a Meshtastic device and want to know what it's doing?** Read the [behavior guide](meshtastic_standard_behavior_guide.md).
 - **Designing new hardware?** Start with [Radio & MCU](meshtastic_radio_mcu_specification.md) (#3) and [Display](meshtastic_display_specification.md) (#2) — those two decisions set the device class — then work through the rest.
+- **Revising a board that already ships?** Read [Revisions](meshtastic_revision_specification.md) (#10) first — it is about keeping a revision from forking the firmware and landing the "which one do I have?" problem on users.
 - **Working on the firmware, or checking a specific board?** The [audit report](meshtastic_device_behavior_audit_report.md) explains the define-resolution chain and the consuming code; the [spreadsheet](meshtastic_device_behavior_audit.xlsx) — or [its markdown rendering](audit/) — has the per-variant detail.
 
 Several rules across the series depend on firmware work that hasn't landed yet — the LED spec's §8 and the Button spec's §5 name those items explicitly.
