@@ -64,7 +64,27 @@ A reset button SHOULD be present — it is the recovery path (bootloader entry o
 
 Placement rules follow from the same failure mode: reset MUST NOT sit adjacent or symmetric to the user button (a timed-hold gesture performed on the wrong button must not be possible to confuse), and it MUST be labeled `RST` so a deliberate press is easy and an accidental one is hard — that asymmetry is the whole design goal. The same protection standard applies to the ESP32 BOOT button where exposed.
 
-## 8. Declaration checklist
+## 8. Controls behind an I2C GPIO expander
+
+Pin-constrained designs MAY put controls and indicators behind an I2C GPIO expander, and three boards do today: the ELECROW ThinkNode M5 drives LEDs through a PCA expander (`PCA_LED_*`), the T5 S3 e-paper board gates a capacitive home button through a PCA9535 (`BOARD_PCA9535_BUTTON_MASK`), and the SenseCAP Indicator routes its touch controller's interrupt and reset through one (`SCREEN_TOUCH_INT`/`_RST` with an `IO_EXPANDER` flag). The expander is a legitimate tool. Using it without an interrupt line is not.
+
+**An expander carrying any input MUST have its interrupt output wired to a real MCU GPIO, and that GPIO MUST be able to wake the MCU from the sleep states the design uses.** An expander with no `INT` connection can only be discovered by polling it over I2C, and polling costs three things that matter here:
+
+**Wake.** A sleeping MCU cannot poll. An input whose only path to the firmware is an I2C read is an input that does nothing in precisely the state the user presses it from — the device is asleep, which is why they are pressing the button. The fleet already shows where this lands: on the T5 S3 e-paper board, touch is deliberately excluded as a light-sleep wake source. A button that cannot wake the device is not a button, it is a button-shaped part.
+
+**Timing.** The semantics in §1 are built on timing: a roughly quarter-second multi-click window, a 0.5–4 s select band, a hold past ~4 s for shutdown. A poll loop adds its interval as jitter to both edges of every press, and an interval long enough to be power-sane is long enough to break multi-click detection outright. Interrupt-driven edges give the debouncer honest timestamps; polled edges give it noise.
+
+**Power.** Waking an I2C bus on a schedule to learn that nothing happened is textbook avoidable draw on a node expected to run for months.
+
+Wiring and handling follow from that. The expander's `INT` is typically open-drain active-low and needs a pull-up — the MCU's internal pull-up is fine where the pin has one. Where several expanders share a bus, their interrupt outputs MAY be wire-OR'd onto one GPIO, since the handler reads each expander's status registers regardless. The design MUST allow firmware to determine which pin changed and to clear the interrupt by reading the expander; a part that latches in a way firmware cannot clear, or that cannot report the source pin, forces the poll loop back again and fails this section. The expander MUST NOT sit behind a bus switch or on a rail that firmware powers down while an input on it is still expected to wake the device.
+
+Some lines MUST NOT be placed on an expander at all:
+
+- **The radio's IRQ, `BUSY`, and reset lines** — see the Radio & MCU Specification, which treats this as a hard requirement for timing reasons.
+- **Reset and BOOT** (§7). Recovery must work with no application firmware present; a ROM bootloader knows nothing about an I2C expander, so a recovery gesture behind one is not a recovery gesture. This is the Recovery & Flashing Specification's prime directive in hardware form.
+- **The primary user button** SHOULD be on a real GPIO. It is the wake, shutdown, and recovery path of §1, users can remap it at runtime (`device.button_gpio`) to a real GPIO when it breaks, and it carries the tightest timing of any control on the board. The expander is for secondary controls — a second button, a notification LED, a backlight enable — not for the one control the device cannot do without.
+
+## 9. Declaration checklist
 
 | Hardware present | Variant MUST declare |
 |---|---|
@@ -76,7 +96,9 @@ Placement rules follow from the same failure mode: reset MUST NOT sit adjacent o
 | PMU power button (preferred over a cutoff switch) | `HAS_AXP192` / `HAS_AXP2101` (derives `HAS_PMU`), plus `PMU_POWER_BUTTON_IS_CANCEL` for the cancel / screen-sleep role |
 | Storage disconnect, where one is fitted | Nothing — a true disconnect is invisible to firmware |
 | GPS switch | Nothing beyond existing GPS declarations — the firmware's module probe handles the switched-off case |
-| Reset / BOOT buttons | Nothing — but the §7 physical-protection rules apply |
+| Reset / BOOT buttons | Nothing — but the §7 physical-protection rules apply, and §8 forbids placing them behind an expander |
+| Control or indicator behind an I2C GPIO expander | The expander part and address, the mapped pin, and the MCU GPIO its `INT` output is wired to (§8) |
+| Expander `INT` line | A wake-capable GPIO, with a pull-up where the pin has none |
 
 As throughout the series: declare exactly what exists. A button define with no button, or a button with no define, fails the audit's dead-define rule.
 
