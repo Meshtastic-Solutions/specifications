@@ -18,6 +18,8 @@ New designs SHOULD use the **SX1262** (or SX1268 for 433/490 MHz targets) as the
 
 Whatever the transceiver, the RF switch configuration (`rfswitch.h` on LR11x0/newer designs) and TCXO arrangements are part of the variant and MUST be declared correctly — the audit's dead-define rule applies to radio plumbing as much as to LEDs.
 
+**The radio's interrupt and control lines MUST be on real MCU GPIOs, never behind an I2C GPIO expander.** The transceiver reports received packets, transmit completion, and timeouts through its IRQ line (`DIO1` on SX126x and LR11x0, `DIO0` on SX127x), and SX126x-class parts additionally gate every SPI command on `BUSY`, which the driver must check immediately before each transaction. Routing either through an expander inserts a full I2C transaction — and contention with every other device on that bus — between the radio and the MCU. Interrupt latency stops being a matter of microseconds and starts depending on unrelated traffic; polling `BUSY` across a second bus is slower than the SPI operation it exists to guard; and a bus that firmware has powered down, or that another driver is mid-transaction on, can delay the line indefinitely. The symptoms are missed receive windows and timing that shifts with whatever else shares the I2C bus, which is the hardest class of radio fault to reproduce on a bench. The radio's reset line belongs on a real GPIO for the same reason: it has to work when the rest of the board does not. The Button & Switch Specification §8 covers the expander rules in general, including the interrupt line an expander does need.
+
 ## 2. Microcontroller
 
 ### Supported by the firmware today
